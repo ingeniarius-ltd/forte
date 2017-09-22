@@ -18,7 +18,11 @@ For instance, the user can use the Robot Operating System (ROS) for robotic purp
 
 That's it - Enjoy!
 
-# 2.	Quick start
+# 2.	ROS Driver and Debug Mode
+For more information about ROS driver and usage, please check the following ROS Wiki page: http://wiki.ros.org/ingeniarius/ForteRC/FORTERC_driver
+
+
+# 3.	Quick start
 After following the installation steps, test the [Fortev1.ino](arduino/examples/Fortev1/Fortev1.ino) firmware located in arduino/examples/ to make sure all libraries are adequately installed. The communication protocol of this firmware version is the following:
 
 <table>
