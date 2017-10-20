@@ -2,7 +2,7 @@
 *
 * Software License Agreement (BSD License)
 *
-*  Copyright (c) 2015, Ingeniarius,Ltd.
+*  Copyright (c) 2017, Ingeniarius,Ltd.
 *  All rights reserved.
 *
 *  Redistribution and use in source and binary forms, with or without
@@ -33,10 +33,9 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *
 * Version: 1.2
-* Last change: 22/09/2017
+* Last change: 20/10/2017
 * Author: Ingeniarius, Ltd
 *********************************************************************/
-
 #include "Arduino.h"
 #include "Robot.h"
 
@@ -63,9 +62,6 @@ void Robot::robotSetup() {
   pinMode(BUZZ_PIN, OUTPUT);
   digitalWrite(BUZZ_PIN, HIGH); 
   
-  // second serial port
-  Serial3.begin(BAUD_RATE);
-  
   // initializes the NeoPixel library.
   pixels.begin(); 
    
@@ -80,11 +76,15 @@ void Robot::robotSetup() {
  *
  ****************************************************************/
  /* Vex manual min:1000 max:2000 */
-  motorRF.attach(MOTOR_RF_PIN, 1400, 1600); // attaches the right-front motor on pin 8 to the servo object
-  motorRB.attach(MOTOR_RB_PIN, 1400, 1600); // attaches the right-back motor on pin 9 to the servo object
-  motorLF.attach(MOTOR_LF_PIN, 1400, 1600); // attaches the left-front motor on pin 10 to the servo object
-  motorLB.attach(MOTOR_LB_PIN, 1400, 1600); // attaches the left-back motor on pin 11 to the servo object
+//  motorRF.attach(MOTOR_RF_PIN, 1400, 1600); // attaches the right-front motor on pin 8 to the servo object
+//  motorRB.attach(MOTOR_RB_PIN, 1400, 1600); // attaches the right-back motor on pin 9 to the servo object
+//  motorLF.attach(MOTOR_LF_PIN, 1400, 1600); // attaches the left-front motor on pin 10 to the servo object
+//  motorLB.attach(MOTOR_LB_PIN, 1400, 1600); // attaches the left-back motor on pin 11 to the servo object
 
+  motorRF.attach(MOTOR_RF_PIN, 1000, 2000); // attaches the right-front motor on pin 8 to the servo object
+  motorRB.attach(MOTOR_RB_PIN, 1000, 2000); // attaches the right-back motor on pin 9 to the servo object
+  motorLF.attach(MOTOR_LF_PIN, 1000, 2000); // attaches the left-front motor on pin 10 to the servo object
+  motorLB.attach(MOTOR_LB_PIN, 1000, 2000); // attaches the left-back motor on pin 11 to the servo object
 }
 
 /************************************************************************
@@ -288,80 +288,6 @@ uint16_t Robot::requested_sonarRead(int index) {
 
 /************************************************************************
  *
- * Function:  readAllSonars.
- * Objective: Reads set (4) of sonars (FRONT, LEFT, BACK, RIGHT or ALL)
- * Issues:    None to report so far.
- *
- *************************************************************************/
-void Robot::ExtDebug_readAllSonars(int p) {
-  int tab[4][5] = {0};
-  int ID [4][5] = {0};
-  int val = 112;
-
-  for (int x = 0; x < 4; x ++) {
-    for (int y = 0; y < 5; y ++) {
-      ID[x][y] = val;
-      val++;
-      //Serial.println(ID[x][y]);
-    }
-    val--;
-  }
-  ID[3][4] = 112;
-  if (p > 0 && p < 5) {
-    Serial3.print('@');
-    for (int i = 0; i < 4; i++) {
-      tab[p - 1][i] = readSonar(ID[p - 1][i]);
-      Serial3.print(tab[p - 1][i]);
-      Serial3.print(',');
-      }
-      for (int i = 3; i < 4; i++) {
-        Serial3.print(tab[p - 1][i]);
-        Serial3.println('e');
-      }
-    
-  }
-
-  if (p==5){
-    Serial3.print('@');
-    for (int j = 0; j < 4; j++) {
-      for (int k = 0; k < 4 ; k++) {
-        tab[j][k] = readSonar(ID[j][k]);
-        if (ID[j][k]!=127){
-          Serial3.print(tab[j][k]);
-          Serial3.print(',');
-        }
-        else{     
-          Serial3.print(tab[j][k]);
-          Serial3.println('e');
-        }
-      }  
-    }
-  }
-}
-
-
-/************************************************************************
- *
- * Function:  encoders readings to debug.
- * Objective: Stop motors and turn on warning led
- * Issues:    None to report so far.
- *
- *************************************************************************/
-void Robot::ExtDebug_encoders_read() {
-
-  Serial3.print("@");
-  Serial3.print(encLF.read());
-  Serial3.print(",");
-  Serial3.print(encRF.read());
-  Serial3.print(",");
-  Serial3.print(encLB.read());
-  Serial3.print(",");
-  Serial3.print(encRB.read());
-  Serial3.println("e");
-}
-
-/************************************************************************
- *
  * Function:  encoders readings.
  * Objective: Stop motors and turn on warning led
  * Issues:    None to report so far.
@@ -413,10 +339,8 @@ void Robot::move_noPID(int RF, int RB, int LF, int LB) {
   motorRB.write(VelRB_final);
   motorLF.write(VelLF_final);
   motorLB.write(VelLB_final);
-
 }
 
-long int aa,bb,cc,dd;
 
 /************************************************************************
  *
@@ -426,181 +350,14 @@ long int aa,bb,cc,dd;
  * Inputs:
  *
  *************************************************************************/
-void Robot::move_PID(float linearx, float lineary, float angularz, int pwm_vel_motors[]) {    // Linear velocities x, y (m/s) e z (rad/s)
-
-//  float velocities[4] = {0};
-//
-///***************************************************************
-// *                       !!Attention!!!                         *
-// ****************************************************************       
-// * Do not turnarround this protetion, to avoid a
-// *
-// ****************************************************************/
-// 
-//  if (linearx > MAX_LINEAR_SPEED){  linearx = MAX_LINEAR_SPEED; }
-//  else if (linearx < -MAX_LINEAR_SPEED){  linearx = -MAX_LINEAR_SPEED;}
-//  
-//  if (lineary > MAX_LINEAR_SPEED){  lineary = MAX_LINEAR_SPEED; }
-//  else if (lineary < -MAX_LINEAR_SPEED){  lineary = -MAX_LINEAR_SPEED;}
-//  
-//  if (angularz > MAX_ANGULAR_SPEED){  angularz = MAX_ANGULAR_SPEED; }
-//  else if (angularz < -MAX_ANGULAR_SPEED){  angularz = -MAX_ANGULAR_SPEED;}
-//
-//  // check position
-//  mecanumcinematics(-linearx, -lineary, -angularz, velocities);
-//
-//
-////  Serial3.println(linearx);
-////  Serial3.println(lineary);
-////  Serial3.println(angularz);
-////  Serial3.println("-");
-//
-//
-//  //remap velocities to servo motor
-////  int VelRF_des = remap_vel(velocities[1]);
-////  int VelRB_des = remap_vel(velocities[3]);
-////  int VelLF_des = remap_vel(velocities[0]);
-////  int VelLB_des = remap_vel(velocities[2]);
-//
-//  int VelRF_des = remap_vel(velocities[0]);
-//  int VelRB_des = remap_vel(velocities[2]);
-//  int VelLF_des = remap_vel(velocities[1]);
-//  int VelLB_des = remap_vel(velocities[3]);
-//
-//  long int encRF_new = 0, encRB_new = 0, encLF_new = 0, encLB_new = 0;
-//
-//  encoders_update(encRF_new, encRB_new, encLF_new, encLB_new);    // Update encoders pulses
-//
-//  //calculate time difference
-//  unsigned long int delta_T=millis()-dif_T;
-//  dif_T=millis();
-//
-//  //calculate real speed with encoder reading & time
-//  int VelRF_real = (int) (90 - (float)(encRF_old - encRF_new) / (float)(delta_T));
-//  int VelRB_real = (int) (90 - (float)(encRB_old - encRB_new) / (float)(delta_T));
-//  int VelLF_real = (int) (90 - (float)(encLF_old - encLF_new) / (float)(delta_T));
-//  int VelLB_real = (int) (90 - (float)(encLB_old - encLB_new) / (float)(delta_T));
-//  
-////    if((encRF_old - encRF_new)!=0 || (encRB_old - encRB_new)!=0 ||  (encLF_old - encLF_new)!=0 || (encLB_old - encLB_new)!=0){
-////  
-//
-////  Serial3.print(encRF_old - encRF_new);
-////  Serial3.print(",");
-////  Serial3.print(encRB_old - encRB_new);
-////  Serial3.print(",");
-////  Serial3.print(encLF_old - encLF_new);
-////  Serial3.print(",");
-////  Serial3.print(encLB_old - encLB_new);
-////  Serial3.print(":");
-////  Serial3.println(delta_T);
-//
-////aa= aa + (encRF_old - encRF_new);
-////bb= bb + (encRB_old - encRB_new);
-////cc= cc + (encLF_old - encLF_new);
-////dd= dd + (encLB_old - encLB_new);
-////  Serial3.println(encRF_old - encRF_new);
-////  Serial3.println(encRB_old - encRB_new);
-////  Serial3.println(encLF_old - encLF_new);
-////  Serial3.println(encLB_old - encLB_new);
-////  Serial3.println(aa);
-////  Serial3.println(bb);
-////  Serial3.println(cc);
-////  Serial3.println(dd);
-////  Serial3.println("--");
-//////
-//////  }
-//  
-//  //PID aplication
-//  EpRF = (float) (VelRF_des - VelRF_real);
-//  EdRF = (EpRF - EpRF_old)/(float)(delta_T);
-//  EiRF = EiRF + EpRF*(float)(delta_T);
-//  EpRF_old = EpRF;
-////  int VelRF_add = 90 + (int) (Kp * EpRF + Kd * EdRF + Ki * EiRF);
-//
-//  int VelRF_add = 90 + (int) (Kp * EpRF + Kd * EdRF + Ki * EiRF);
-//
-//
-//  EpRB = (float) (VelRB_des - VelRB_real);
-//  EdRB = (EpRB - EpRB_old)/(float)(delta_T);
-//  EiRB = EiRB + (float)(delta_T)*EpRB;
-//  EpRB_old = EpRB;
-//  int VelRB_add = 90 + (int) (Kp * EpRB + Kd * EdRB + Ki * EiRB);
-//
-//  EpLF = (float) (VelLF_des - VelLF_real);
-//  EdLF = (EpLF - EpLF_old)/(float)(delta_T);
-//  EiLF = EiLF + (float)(delta_T)*EpLF;
-//  EpLF_old = EpLF;
-//  int VelLF_add = 90 + (int) (Kp * EpLF + Kd * EdLF + Ki * EiLF);
-//
-//  EpLB = (float) (VelLB_des - VelLB_real);
-//  EdLB = (EpLB - EpLB_old)/(float)(delta_T);
-//  EiLB = EiLB + (float)(delta_T)*EpLB;
-//  EpLB_old = EpLB;
-//  int VelLB_add = 90 + (int) (Kp * EpLB + Kd * EdLB + Ki * EiLB);
-//
-//  encRF_old = encRF_new;
-//  encRB_old = encRB_new;
-//  encLF_old = encLF_new;
-//  encLB_old = encLB_new;
-//
-//  ///dif_T=millis();
-//  
-// /***************************************************************
-// *                       !!Attention!!!                         *
-// ****************************************************************       
-// * Do not turnarround this protetion, to avoid a
-// *
-// ****************************************************************/
-// int VelRF_final=VelRF_add, 
-//     VelRB_final=VelRB_add, 
-//     VelLF_final=VelLF_add, 
-//     VelLB_final=VelLB_add;
-// 
-//   
-//  if (VelRF_final < MIN_THRESHOLD_MOTORS){  VelRF_final = MIN_THRESHOLD_MOTORS; }
-//  else if (VelRF_final > MAX_THRESHOLD_MOTORS){  VelRF_final = MAX_THRESHOLD_MOTORS; }
-//  
-//  if (VelRB_final < MIN_THRESHOLD_MOTORS){  VelRB_final = MIN_THRESHOLD_MOTORS; }
-//  else if (VelRB_final > MAX_THRESHOLD_MOTORS){  VelRB_final = MAX_THRESHOLD_MOTORS; }
-//  
-//  if (VelLF_final < MIN_THRESHOLD_MOTORS){  VelLF_final = MIN_THRESHOLD_MOTORS; }
-//  else if (VelLF_final > MAX_THRESHOLD_MOTORS){  VelLF_final = MAX_THRESHOLD_MOTORS; }
-//  
-//  if (VelLB_final < MIN_THRESHOLD_MOTORS){  VelLB_final = MIN_THRESHOLD_MOTORS; }
-//  else if (VelLB_final > MAX_THRESHOLD_MOTORS){  VelLB_final = MAX_THRESHOLD_MOTORS; }
-//    
-////  Serial3.println(VelRF_des);
-////  Serial3.println(VelRB_des);
-////  Serial3.println(VelLF_des);
-////  Serial3.println(VelLB_des);
-////  Serial3.println("-");
-////  Serial3.println(VelRF_real);
-////  Serial3.println(VelRB_real);
-////  Serial3.println(VelLF_real);
-////  Serial3.println(VelLB_real);
-////  Serial3.println("---");
-////
-////
-////  Serial3.println(VelRF_final);
-////  Serial3.println(VelRB_final);
-////  Serial3.println(VelLF_final);
-////  Serial3.println(VelLB_final);
-////  Serial3.println("-----");
-//
-//  pwm_vel_motors[0] = VelRF_final;
-//  pwm_vel_motors[1] = VelRB_final;
-//  pwm_vel_motors[2] = VelLF_final;
-//  pwm_vel_motors[3] = VelLB_final;
-//
-//// move_noPID( VelRF_final, VelRB_final, VelLF_final, VelLB_final);
-  
-}
-
 void Robot::move_PID_odometry(float linearx, float lineary, float angularz, int pwm_vel_motors[], float &pose_x, float &pose_y, float &pose_w, float veloc[]) {
   
   
     long int encRF_new=0, encRB_new=0, encLF_new=0, encLB_new=0;
     encoders_update(encRF_new,encRB_new, encLF_new, encLB_new);  //update encoder counts
+
+    encLF_new = encLF_new * (-1);
+    encLB_new = encLB_new * (-1);
     
     long int delta_T=millis()-dif_T;
     dif_T=millis();
@@ -715,7 +472,11 @@ void Robot::move_PID_odometry(float linearx, float lineary, float angularz, int 
      VelRB_final=VelRB_add, 
      VelLF_final=VelLF_add, 
      VelLB_final=VelLB_add;
- 
+
+
+  // Invert L wheels
+  VelLF_final = VelLF_final - (VelLF_final-90) * 2;
+  VelLB_final = VelLB_final - (VelLB_final-90) * 2;
    
   if (VelRF_final < MIN_THRESHOLD_MOTORS){  VelRF_final = MIN_THRESHOLD_MOTORS; }
   else if (VelRF_final > MAX_THRESHOLD_MOTORS){  VelRF_final = MAX_THRESHOLD_MOTORS; }
@@ -734,7 +495,7 @@ void Robot::move_PID_odometry(float linearx, float lineary, float angularz, int 
   pwm_vel_motors[2] = VelLF_final;
   pwm_vel_motors[3] = VelLB_final;
 
-  move_noPID( VelRF_final, VelRB_final, VelLF_final, VelLB_final);
+  move_noPID( VelRF_final, VelRB_final , VelLF_final, VelLB_final);
   
 }
 
@@ -814,94 +575,7 @@ boolean Robot::odometry_calculation(float &pose_x, float &pose_y, float &pose_w,
 }
 
 
-/************************************************************************
- *
- * Function:  Encoder test.
- * Objective: Each wheel turns 2 times at the same speed. Time is calculated and presented
- * Issues:    None to report so far.
- *
- *************************************************************************/
-void Robot::ExtDebug_test_MotorsEncoders() {
-  
-  long int pulsosRF = 0, pulsosLF = 0, pulsosRB = 0, pulsosLB = 0;
-  unsigned long int tempoRF = 0, tempoLF = 0, tempoRB = 0, tempoLB = 0;
-  
-  encoders_reset(); // Reset encoders 
 
-  /*Motor RF */
-  tempoRF = millis();
-  while (pulsosRF < 2*PULSES_PER_ROTATION) {
-    motorRF.write(100);
-    pulsosRF = encRF.read();
-  }
-  motorRF.write(90);
-  tempoRF = millis()-tempoRF;
-  delay(2000);
-
-  /*Motor LF */
-  tempoLF = millis();
-  while (pulsosLF < 2*PULSES_PER_ROTATION) {
-    motorLF.write(100);
-    pulsosLF = encLF.read();
-  }
-  motorLF.write(90);
-  tempoLF = millis()-tempoLF;
-  delay(2000);
-
-  /*Motor RB */
-  tempoRB = millis();
-  while (pulsosRB < 2*PULSES_PER_ROTATION) {
-    motorRB.write(100);
-    pulsosRB = encRB.read();
-  }
-  motorRB.write(90);
-  tempoRB = millis()-tempoRB;
-  delay(2000);
-
-  /*Motor LB */
-  tempoLB = millis();
-  while (pulsosLB < 2*PULSES_PER_ROTATION) {
-    motorLB.write(100);
-    pulsosLB = encLB.read();
-  }
-  motorLB.write(90);
-  tempoLB = millis()-tempoLB;
-  
-
-  Serial3.print('@');
-  Serial3.print (tempoRF);
-  
-  Serial3.print(',');
-  Serial3.print (tempoLF);
- 
-  Serial3.print(',');
-  Serial3.print (tempoRB);
-
-  Serial3.print(',');
-  Serial3.print (tempoLB);
-  Serial3.println(' e');
-  
-  //stopmotors();
-  delay(2000);
-}
-
-/************************************************************************
- *
- * Function:  ExtDebug_generic.
- * Objective: Generic send data to serial debug port
- * Issues:    None to report so far.
- *
- *************************************************************************/
-void Robot::ExtDebug_generic(int data[], uint8_t size_data){
-  
-  Serial3.print('@');
-  for (int i=0; i<size_data; i++){
-    Serial3.print (data[i]);
-    Serial3.print(',');
-  }
-  Serial3.println('e');
-  
-}
 
 
 

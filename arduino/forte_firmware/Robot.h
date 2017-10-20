@@ -2,7 +2,7 @@
 *
 * Software License Agreement (BSD License)
 *
-*  Copyright (c) 2015, Ingeniarius,Ltd.
+*  Copyright (c) 2017, Ingeniarius,Ltd.
 *  All rights reserved.
 *
 *  Redistribution and use in source and binary forms, with or without
@@ -33,11 +33,10 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *
 * Version: 1.2
-* Last change: 22/09/2017
+* Last change: 20/10/2017
 * Author: Ingeniarius, Ltd
 *********************************************************************/
 /*
-
                  LEFT
    
     -     |##2##|       |##4##|        
@@ -86,9 +85,9 @@ T   -     |##1##|       |##3##|
 #define MIN_THRESHOLD_MOTORS (90 - MAX_TORQUE_MOTORS)
 
 /* PID Gains controller */
-#define Kp 0.1
-#define Kd 0.007
-#define Ki 0.002
+#define Kp 0.1 //0.7
+#define Kd 0.07 //1.0
+#define Ki 0.002 //0.0007
 
 /* ROS */
 #define ROS_PUB_FREQ 10 // Hz
@@ -104,7 +103,7 @@ T   -     |##1##|       |##3##|
 
 /* Robot phisical parameters */
 #define WHEEL_DIAMETER 0.2232  // m
-#define AXIS_LENGTH_L1 0.45   // m
+#define AXIS_LENGTH_L1 0.495   // m
 #define AXIS_LENGTH_L2 0.495   // m
 
 /* Encoders */
@@ -135,7 +134,7 @@ T   -     |##1##|       |##3##|
 #define BUZZ_PIN 7
 
 /* Stop button Pin */
-#define EMERGENCY_STOP_PIN  12
+#define EMERGENCY_STOP_PIN  13
 
 
 class Robot
@@ -155,7 +154,6 @@ class Robot
     void encoders_reset(void);
     
     /* Motors */
-    void move_PID(float linearx, float lineary, float angularz,int pwm_vel_motors[]);
     void move_PID_odometry(float linearx, float lineary, float angularz, int pwm_vel_motors[], float &pose_x, float &pose_y, float &pose_w, float velocities[]);
     void move_noPID(int RF, int RB, int LF, int LB);
     
@@ -172,13 +170,6 @@ class Robot
     void resetTimers(void);
     int remap_vel(float vel);    
     
-    /* Extern Debug */
-    void ExtDebug_readAllSonars(int p);
-    void ExtDebug_test_MotorsEncoders(void);
-    void ExtDebug_encoders_read();
-    void ExtDebug_generic(int data[], uint8_t size_data);
-    
-     
   private:
   
     /* General purpose */

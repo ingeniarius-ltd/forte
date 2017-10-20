@@ -2,7 +2,7 @@
  *
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2016, Ingeniarius,Ltd.
+ *  Copyright (c) 2017, Ingeniarius,Ltd.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,8 @@
  *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  *
- * Version: 1.2
- * Last change: 22/09/2017
+ * Version: 1.3
+ * Last change: 20/10/2017
  * Author: Ingeniarius, Ltd
  *********************************************************************/
 
@@ -75,7 +75,7 @@ RobotSerialComm port;     // RobotSerial Communication
 /* General purpose */
 boolean STREAM = STARTUP_MODE;     // Streaming flag
 boolean newSonar_data = false;     // Flag to confirm that exist new update sonar data
-int timer5_counter;                // Counter 
+int timer4_counter;                // Counter 
 uint8_t cmdVel_zero_counter = 0;
 
 /* Timing */
@@ -116,8 +116,6 @@ struct {
 void enable_timeout_motors(void);                                 //Enable motors timeout protection
 void messageCb (const geometry_msgs::Twist &incoming_msg);        // ROS cmd_vel callback
 void messageRGBleds_Cb (const std_msgs::UInt8MultiArray &msg);    // ROS RGB_leds callback
-void streamMode_ON_OFF(void);
-void pingpong_debug(void);
 void stopmotors(void);
 
 
@@ -163,10 +161,11 @@ ros::Publisher sonars("sonars", &data_sonars);
  *
  *************************************************************************/
 void setup(){
-  
+
+
   // Robot initial setup
   robot.robotSetup();
-  
+   
   nh.getHardware()->setBaud(BAUD_RATE);
   nh.initNode();
   broadcaster.init(nh);
@@ -174,7 +173,6 @@ void setup(){
   //ROS topics
   nh.subscribe(sub);
   nh.subscribe(sub_RGBleds);
-  nh.advertise(odometry);
   #if SONARS_ENABLE
   nh.advertise(sonars);
 
@@ -189,19 +187,19 @@ void setup(){
  ****************************************************************/ 
   // Timer interrupt for ROS timeout cmd_vel protection
   
-  // initialize timer5 
+  // initialize timer4 
   noInterrupts();           // disable all interrupts
-  TCCR5A = 0;               // set entire TCCR3A register to 0
-  TCCR5B = 0;               // same for TCCR3B
+  TCCR4A = 0;               // set entire TCCR3A register to 0
+  TCCR4B = 0;               // same for TCCR3B
 
   // Set timer1_counter to the correct value for our interrupt interval
-  timer5_counter = 64286;   // preload timer 65536-16MHz/256/50Hz
+  timer4_counter = 64286;   // preload timer 65536-16MHz/256/50Hz
   
-  TCNT5 = timer5_counter;   // preload timer
-  TCCR5B |= (1 << CS52);    // 256 prescaler 
-  TIMSK5 |= (1 << TOIE5);   // enable timer overflow interrupt
+  TCNT4 = timer4_counter;   // preload timer
+  TCCR4B |= (1 << CS42);    // 256 prescaler 
+  TIMSK4 |= (1 << TOIE4);   // enable timer overflow interrupt
   interrupts();             // enable all interrupts
-  
+
 }
 
 
@@ -216,17 +214,9 @@ void setup(){
 
 void loop() {
 
-
   if (digitalRead(EMERGENCY_STOP_PIN)) {    //  Check if stop button is active
   
-
-    if (!STREAM){     // Stream OFF - Debug mode  
    
-      pingpong_debug();
-      status_mode_RGBleds(2);
-
-    } else  {            // Stream ON - ROS mode
-    
       if(millis()-rosSync > ROS_PUB_FREQ_MS){
         
         rosSync = millis();  // update rosSync time 
@@ -245,28 +235,7 @@ void loop() {
         odom_trans.transform.translation.z = 0.0;
         odom_trans.transform.rotation = tf::createQuaternionFromYaw(robotData.pose_w);
 
-
-        ////////////////////////////////////////////////////////  PUB ODOM
-        // Publish the odometry message over ROS
-        odom.header.frame_id = odom_frame;
-        odom.child_frame_id = base_link_frame;
-        odom.header.stamp = current_time;
-
-        // Pose
-        odom.pose.pose.position.x = odom_trans.transform.translation.x;//robotData.pose_x;
-        odom.pose.pose.position.y = odom_trans.transform.translation.y;//robotData.pose_y;
-        odom.pose.pose.position.z = 0.0;
-        odom.pose.pose.orientation = odom_trans.transform.rotation;
-        
-        // Set the velocities
-        odom.twist.twist.linear.x = robotData.velocities[0];
-        odom.twist.twist.linear.y = robotData.velocities[1];
-        odom.twist.twist.angular.z = robotData.velocities[2];
-  
-       
-       // Send the transform and odom
-       odometry.publish(&odom);		                // odometry publisher
-       broadcaster.sendTransform(odom_trans); 		// odom->base_link transform
+       broadcaster.sendTransform(odom_trans);     // odom->base_link transform
        nh.spinOnce();
         
         ////////////////////////////////////////////////////////  PUB Sonars
@@ -286,10 +255,6 @@ void loop() {
       
       #endif 
 
-      pingpong_debug();               // Verify if flagStream ON  - ROS mode | If flagStream OFF - Debug mode
-      
-    
-    }  // END IF ROS MODE
     
     
   }  // END OF IF EMERGENCY_STOP
@@ -298,10 +263,12 @@ void loop() {
 
     stopmotors();
     status_mode_RGBleds(1);
-    
-    if (STREAM){
+
+
       if(millis()-rosSync > ROS_PUB_FREQ_MS){        
         rosSync = millis();  // update rosSync time
+
+        nh.logwarn("Emergency button is pushed! Unlock the button to move the motor.");
         
         ////////////////////////////////////////////////////////  PUB ODOM TF
         ros::Time current_time = nh.now();
@@ -315,31 +282,10 @@ void loop() {
         odom_trans.transform.translation.z = 0.0;
         odom_trans.transform.rotation = tf::createQuaternionFromYaw(robotData.pose_w);
 
-
-        ////////////////////////////////////////////////////////  PUB ODOM
-        // Publish the odometry message over ROS
-        odom.header.frame_id = odom_frame;
-        odom.child_frame_id = base_link_frame;
-        odom.header.stamp = current_time;
-
-        // Pose
-        odom.pose.pose.position.x = odom_trans.transform.translation.x;//robotData.pose_x;
-        odom.pose.pose.position.y = odom_trans.transform.translation.y;//robotData.pose_y;
-        odom.pose.pose.position.z = 0.0;
-        odom.pose.pose.orientation = odom_trans.transform.rotation;
-        
-        // Set the velocities
-        odom.twist.twist.linear.x = 0.0;
-        odom.twist.twist.linear.y = 0.0;
-        odom.twist.twist.angular.z = 0.0;
-  
-       
        // Send the transform and odom
-       odometry.publish(&odom);		                // odometry publisher
-       broadcaster.sendTransform(odom_trans); 		// odom->base_link transform
+       broadcaster.sendTransform(odom_trans);     // odom->base_link transform
        nh.spinOnce();
       }
-    }
  
   }
   
@@ -347,9 +293,7 @@ void loop() {
    loopUpdate_time = millis();
    emergencyStop_loopUpdate  = millis();   // Update time to security routine, if the loop is blocking, timeout 200ms
    HEART_BEAT = true;                      // Flag to confirm if the loop is blocking, timeout 200ms
-   //nh.spinOnce();                          // ROS SpinOnce
   }   
-  
 }
 
 /************************************************************************
@@ -398,9 +342,9 @@ void messageCb ( const geometry_msgs::Twist &incoming_msg ){
  /***************************************************************
  *                       !!Attention!!!                         *
  ****************************************************************/ 
-ISR(TIMER5_OVF_vect)        // interrupt service routine 
+ISR(TIMER4_OVF_vect)        // interrupt service routine 
 {
-  TCNT5 = timer5_counter;   // preload timer
+  TCNT4 = timer4_counter;   // preload timer
   
   if(millis()-odometry_update > 50){    // Odometry in arduino will be updated every 50ms
     odometry_update = millis();
@@ -410,13 +354,13 @@ ISR(TIMER5_OVF_vect)        // interrupt service routine
   if(ACTIVATE_TIMEOUT && ( millis()-cmd_vel_timeout > CMD_VEL_TIMEOUT )){
      ACTIVATE_TIMEOUT=false;
      stopmotors();
-     Serial3.println("ACTIVATE_TIMEOUT");
+     nh.logwarn("CMD_VEL timeout! I will stop the motors for safe issues.");
   }
   
   if(millis()- emergencyStop_loopUpdate > 200 && HEART_BEAT){
     HEART_BEAT = false;
     robot.move_noPID(90,90,90,90);
-    Serial3.println("Loop Stop emergency");
+    nh.logwarn("Loop Stop emergency");
   }
 
 }
@@ -472,118 +416,4 @@ void status_mode_RGBleds (int mode){
 }
 
 
-/************************************************************************
- *
- * Function:  pingpong_debug.
- * Objective: send command, get action
- * Issues:    None to report so far.
- *
- *************************************************************************/
-void pingpong_debug() {
-
-  if (Serial3.available() > 0) {
-    
-      unsigned int arg[5];
-      int action = port.getMsg(arg);
-      switch (action) {
-    
-      case ACTION_START_STREAM:             //@1e, no reply
-        STREAM = true;
-        break;
-    
-      case ACTION_STOP_STREAM:             //@2e, no reply
-        STREAM = false;
-        break;
-    
-      case ENCODER_TEST:                    //@3e, reply: @3<LFsec><RFsec><LBsec><RBsec>e
-        robot.ExtDebug_test_MotorsEncoders();
-        STREAM = false;
-        break;
-    
-      case READ_ENCODERS:                    //@4e, reply: @4<LF><RF><LB><RB>e
-        robot.ExtDebug_encoders_read();
-        STREAM = false;
-        break;
-    
-      case READ_SONARS_FRONT:                //@5e, reply: @5<S1><S2><S3><S4><S5>e
-        robot.ExtDebug_readAllSonars(1);
-        STREAM = false;
-        break;
-    
-      case READ_SONARS_RIGHT:                //@6e, reply: @6<S5><S6><S7><S8><S9>e
-        robot.ExtDebug_readAllSonars(2);
-        STREAM = false;
-        break;
-    
-      case READ_SONARS_BACK:                //@7e, reply: @7<S9><S10><S11><S12><S13>e
-        robot.ExtDebug_readAllSonars(3);
-        STREAM = false;
-        break;
-    
-      case READ_SONARS_LEFT:                //@8e, reply: @8<S13><S14><S15><S16><S1>e
-        robot.ExtDebug_readAllSonars(4);
-        STREAM = false;
-        break;
-    
-      case READ_SONARS_ALL:                 //@9e, reply: @9<S1><S2><S3><S4><S5><S6><S7><S8><S9><S10><S11><S12><S13><S14><S15><S16>e
-        robot.ExtDebug_readAllSonars(5);
-        STREAM = false;
-        break;
-    
-      case MOVE_PID:                        //@10,Vx,Vy,Vwe, no reply
-        //robot.move_PID((float)(arg[0]/100.0), (float)(arg[1]/100.0), (float)(arg[2]/100.0));
-        robotData.cmd_vel_Vx = (float)(arg[0]/100.0); 
-        robotData.cmd_vel_Vy = (float)(arg[1]/100.0);
-        robotData.cmd_vel_Vw = (float)(arg[2]/100.0);
-        enable_timeout_motors();
-        STREAM = false;
-        break;
-    
-      case MOVE_NOPID:                      //@11,RF_val,RB,_val,LF_vale,LB_val,e , no reply
-        //robot.move_noPID(arg[0], arg[1], arg[2], arg[3]);
-        enable_timeout_motors();
-        STREAM = false;
-        break;
-    
-      case STOP_MOTORS:                     //@12e, no reply
-        stopmotors();
-        STREAM = false;
-        break;
-    
-      case ENCODERS_RESET:                  //@13e, no reply
-        robot.encoders_reset();
-        STREAM = false;
-        break;
-    
-      case LED_STATE:                    //@14,R1,G1,B1,R2,G2,B2,e, no reply
-        robot.statusLED(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
-        STREAM = false;
-        break;
-       
-      case ODOM:                        //@15,e, //@15e, reply: @15<PoseX><PoseY><PoseW><VelX><VelY><VelW>e
-        {
-          int pose_data[]={(int)(robotData.pose_x * 100.0), 
-                         (int)(robotData.pose_y * 100.0), 
-                         (int)(robotData.pose_w * 100.0), 
-                         (int)(robotData.velocities[0] * 100.0),
-                         (int)(robotData.velocities[1] * 100.0), 
-                         (int)(robotData.velocities[1] * 100.0)};
-        
-          robot.ExtDebug_generic(pose_data,6);
-
-          STREAM = false;
-        }
-        break; 
-        
-      case ODOM_RESET:                    //@16,e, no reply
-        robotData.pose_x=0, robotData.pose_y=0, robotData.pose_w=0, robotData.velocities[0]=0, robotData.velocities[1]=0, robotData.velocities[1]=0;
-        STREAM = false;
-        break; 
-    
-      default:
-        break;
-    
-      }
-  }
-}
 
